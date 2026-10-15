@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Data
+*.db
+*.sqlite3
+data/chroma/
+output/
+*.wav
+*.mp3
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Logs
+*.log
+
+# UV
+uv.lock
