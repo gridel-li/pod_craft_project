@@ -67,8 +67,7 @@ class TaskResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class TaskListResponse(BaseModel):
@@ -85,8 +84,7 @@ class DocumentResponse(BaseModel):
     chunk_count: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class SearchResponse(BaseModel):

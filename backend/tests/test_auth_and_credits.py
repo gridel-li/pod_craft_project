@@ -53,7 +53,7 @@ async def test_admin_access_and_recharge(client: AsyncClient, db_session):
 
     # Regular user cannot access /admin/users
     forbidden_resp = await client.get(
-        "/admin/users",
+        "/api/admin/users",
         headers={"Authorization": f"Bearer {bob_token}"},
     )
     assert forbidden_resp.status_code == 403
