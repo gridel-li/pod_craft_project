@@ -4,7 +4,7 @@ API routes — PodCraft RESTful endpoints
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header
@@ -27,7 +27,7 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Global instances
+# 全局实例会在进程启动时创建一次，所有请求复用。优点是少建连接；缺点是长任务/多进程场景需要更谨慎地管理资源。
 orchestrator = WorkflowOrchestrator()
 rag_service = RAGService()
 
@@ -40,7 +40,11 @@ async def get_optional_user(
     authorization: str = Header(None),
     db: AsyncSession = Depends(get_db),
 ) -> Optional[User]:
-    """Try to extract user from token; return None if not logged in."""
+    """Try to extract user from token; return None if not logged in.
+
+    学习提示：Depends 会先执行此函数，再把返回值注入路由的 user 参数；
+    此依赖是“可选登录”，因此不能把它误当成权限保护。
+    """
     if not authorization or not authorization.startswith("Bearer "):
         return None
     token = authorization.split(" ")[1]
@@ -83,7 +87,7 @@ async def generate_podcast(
     """Create a podcast generation task"""
     task_id = uuid.uuid4().hex[:8]
 
-    # If user is logged in, deduct 1 credit
+    # 业务顺序：创建任务前先扣积分。真实生产还应处理生成失败退款和并发扣费的原子性。
     if user:
         success = await use_credits(db, user.id, amount=1, reason=f"Generate: {request.topic[:50]}")
         if not success:
@@ -102,6 +106,8 @@ async def generate_podcast(
     db.add(task)
     await db.commit()
 
+    # HTTP 接口先快速返回 task_id；耗时的 LLM/TTS 工作随后运行，前端再通过轮询获取状态。
+    # BackgroundTasks 适合演示；生产任务应由独立队列 worker 承担，避免进程重启丢任务。
     background_tasks.add_task(
         _run_generation, task_id, request
     )
@@ -110,7 +116,10 @@ async def generate_podcast(
 
 
 async def _run_generation(task_id: str, request: GenerateRequest):
-    """Run podcast generation in the background"""
+    """Run podcast generation in the background.
+
+    这里重新创建 session，不能复用已经随 HTTP 请求结束而关闭的 db session。
+    """
     async with async_session() as session:
         try:
             # Update status
@@ -119,7 +128,7 @@ async def _run_generation(task_id: str, request: GenerateRequest):
             task.current_step = "分析心情..."
             await session.commit()
 
-            # Execute Workflow
+            # 编排器只负责“生成”，本函数负责把生成结果映射回数据库任务状态。
             result = await orchestrator.execute(
                 topic=request.topic,
                 mood=request.mood,
@@ -140,7 +149,7 @@ async def _run_generation(task_id: str, request: GenerateRequest):
                 task.audio_path = result["audio_path"]
                 task.duration_sec = result["duration_sec"]
                 task.progress = 100.0
-                task.completed_at = datetime.utcnow()
+                task.completed_at = datetime.now(timezone.utc)
             else:
                 task.status = TaskStatus.FAILED
                 task.error_message = result.get("error", "未知错误")
@@ -163,6 +172,7 @@ async def _update_progress(session, task_id: str, step: str, status: str, progre
         if task:
             task.progress = float(progress)
             task.current_step = step
+            # 工作流内部步骤名与数据库对外状态不是一一对应，所以在这里做翻译。
             status_map = {
                 "rag": TaskStatus.ANALYZING,
                 "mood_analysis": TaskStatus.ANALYZING,

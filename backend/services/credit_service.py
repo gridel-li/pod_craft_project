@@ -4,7 +4,7 @@ Credit service — manage user credits (consume / add / query logs)
 
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +25,8 @@ async def use_credits(
     Deduct credits from a user.
     Returns True if successful, False if insufficient balance.
     """
+    # 先读取用户，再修改 ORM 对象，commit 时 SQLAlchemy 会生成 UPDATE/INSERT。
+    # 高并发生产环境应改为带条件的原子 UPDATE 或行锁，避免同时扣成负数。
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user or user.credits < amount:
@@ -36,7 +38,7 @@ async def use_credits(
         user_id=user_id,
         amount=-amount,
         reason=reason,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(log)
     await db.commit()
@@ -62,7 +64,7 @@ async def add_credits(
         user_id=user_id,
         amount=amount,
         reason=reason,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(log)
     await db.commit()

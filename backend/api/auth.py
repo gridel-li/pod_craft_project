@@ -45,7 +45,10 @@ async def get_current_user(
     authorization: str = Header(None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Extract the current user from the JWT token."""
+    """Extract the current user from the JWT token.
+
+    认证（authentication）回答“你是谁”；下面 admin.py 的角色检查属于授权（authorization）。
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="未登录")
 
@@ -79,7 +82,7 @@ def _user_response(user: User) -> UserResponse:
 @router.post("/register", response_model=TokenResponse)
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user"""
-    # Check email
+    # 先检查唯一字段，避免把数据库唯一约束异常直接暴露给前端。
     result = await db.execute(select(User).where(User.email == request.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="邮箱已注册")
@@ -102,6 +105,7 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
     await db.commit()
     await db.refresh(user)
 
+    # sub（subject）是 JWT 的标准主体字段；只放用户 ID，权限仍应从数据库实时读取。
     token = create_access_token({"sub": user.id})
     return TokenResponse(access_token=token, user=_user_response(user))
 

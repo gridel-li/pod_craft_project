@@ -27,6 +27,7 @@ class AudioService:
                 raise AudioError("没有音频文件")
 
             os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+            # pydub 的单位是毫秒；AudioSegment 是内存中的音频数据，不是文件路径。
             silence = AudioSegment.silent(duration=self.silence_ms)
 
             segments = [AudioSegment.from_wav(p) for p in audio_paths]
@@ -39,7 +40,7 @@ class AudioService:
             if self.fade_out_ms > 0:
                 combined = combined.fade_out(self.fade_out_ms)
 
-            # BGM 混音
+            # BGM 混音：overlay 把两条音轨叠加，先降低 BGM 音量，避免盖住人声。
             if bgm_path and os.path.exists(bgm_path):
                 combined = self._mix_bgm(combined, bgm_path)
 

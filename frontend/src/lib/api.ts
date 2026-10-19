@@ -5,6 +5,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  // 统一在这里附加 token，组件就不必重复写 Authorization 头。
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -13,6 +14,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+  // API_BASE 允许生产环境把 API 指向独立后端域名；为空时请求当前站点的 /api。
   return fetch(`${API_BASE}${path}`, { ...options, headers });
 }
 

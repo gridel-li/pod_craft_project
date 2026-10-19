@@ -14,6 +14,7 @@ class ReviewerAgent(BaseAgent):
     async def execute(self, context: AgentContext) -> AgentContext:
         self.logger.info("审查脚本质量...")
 
+        # 将列表中的结构化 segment 拼成连续文本，便于一个审查 prompt 评估整体连贯性。
         script_text = ""
         for seg in context.segments:
             script_text += f"[{seg.get('type', '')}]\n{seg.get('content', '')}\n\n"
@@ -37,6 +38,7 @@ class ReviewerAgent(BaseAgent):
 
         review = await self._llm_json(messages, temperature=0.3)
         context.review_notes = review.get("notes", "")
+        # metadata 用来存不属于最终音频、但对调试/后续流程有用的中间信息。
         context.metadata["review"] = review
 
         if review.get("approved"):

@@ -2,13 +2,11 @@
 Test fixtures and configuration
 """
 
-import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from config.settings import settings
 from models.database import Base, get_db
 from main import app
 

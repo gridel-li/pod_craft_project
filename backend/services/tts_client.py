@@ -15,7 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class TTSClient:
-    """MiMo TTS 客户端"""
+    """MiMo TTS 客户端。
+
+    注意 synthesize 是同步函数，而工作流是 async：真实生产中应放在线程池或使用异步 SDK，
+    否则网络等待会占住事件循环。
+    """
 
     VOICES = {
         "冰糖": "冰糖", "茉莉": "茉莉", "苏打": "苏打", "白桦": "白桦",
@@ -46,6 +50,7 @@ class TTSClient:
                 audio={"format": "wav", "voice": voice},
             )
 
+            # API 返回 base64 文本；解码后才是可以写入 wav 文件的二进制字节。
             audio_bytes = base64.b64decode(completion.choices[0].message.audio.data)
             with open(output_path, "wb") as f:
                 f.write(audio_bytes)

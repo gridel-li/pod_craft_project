@@ -15,7 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class LLMClient:
-    """LLM API 客户端"""
+    """LLM API 客户端。
+
+    此处使用 OpenAI 兼容 HTTP 协议，而不是把供应商调用散落在 Agent 内；
+    将来切模型时主要修改这一层。
+    """
 
     def __init__(
         self,
@@ -44,6 +48,7 @@ class LLMClient:
     ) -> str:
         """普通调用"""
         try:
+            # messages 是角色消息数组，response_format 用于尽量约束模型输出 JSON。
             body = {
                 "model": self.model,
                 "messages": messages,
@@ -56,6 +61,7 @@ class LLMClient:
 
             resp = await self.client.post(f"{self.base_url}/chat/completions", json=body)
             resp.raise_for_status()
+            # raise_for_status 会把 4xx/5xx 转成异常；异常在这里统一包装为 LLMError。
             return resp.json()["choices"][0]["message"]["content"]
         except Exception as e:
             logger.error(f"LLM 调用失败: {e}")
@@ -67,7 +73,7 @@ class LLMClient:
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            # 尝试清理
+            # 模型偶尔会用 ```json 代码块包裹 JSON，因此做有限的容错；仍可能解析失败。
             clean = raw.strip()
             if clean.startswith("```"):
                 clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]

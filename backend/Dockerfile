@@ -1,9 +1,15 @@
 FROM python:3.12-slim
 
 WORKDIR /app
+
+# Install uv package manager
 RUN pip install uv
-COPY pyproject.toml uv.lock ./
-RUN uv sync --no-dev
+
+# Install dependencies
+COPY pyproject.toml ./
+RUN uv sync --no-dev --no-install-project
+
+# Copy application code
 COPY . .
 RUN mkdir -p data output
 

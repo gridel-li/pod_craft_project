@@ -1,4 +1,4 @@
-.PHONY: test dev-backend dev-frontend lint docker-up docker-down
+.PHONY: test dev-backend dev-frontend lint docker-up docker-down seed-admin
 
 test:
 	cd backend && uv run --extra dev pytest -v
@@ -14,6 +14,9 @@ dev-frontend:
 
 build-frontend:
 	cd frontend && npm run build
+
+seed-admin:
+	cd backend && uv run python scripts/seed_admin.py
 
 docker-up:
 	docker compose up --build

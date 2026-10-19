@@ -20,7 +20,7 @@ class ScriptWriterAgent(BaseAgent):
         if context.rag_context:
             rag_section = f"\n\n参考资料（请适当引用）：\n{context.rag_context}"
 
-        # 构建 Few-shot 示例
+        # Few-shot 是“给模型看一个输入输出范例”，用来提高语气和 JSON 结构的一致性。
         few_shot = self._get_few_shot(context.style)
 
         messages = [
@@ -60,11 +60,13 @@ class ScriptWriterAgent(BaseAgent):
 
         script = await self._llm_json(messages, temperature=0.8)
         context.script = script
+        # 后续 Reviewer 与 TTS 只依赖分段，故把嵌套 JSON 中最常用部分提升为 context 的一级字段。
         context.segments = script.get("segments", [])
         self.logger.info(f"脚本生成完成: {len(context.segments)} 个片段")
         return context
 
     def _format_plan(self, segments: list) -> str:
+        """把结构化大纲转成人类/LLM 易读的提示词文本；不是输出给浏览器的 HTML。"""
         lines = []
         for seg in segments:
             lines.append(f"- [{seg.get('type', '')}] {seg.get('theme', '')}（{seg.get('duration_sec', 0)}秒）")

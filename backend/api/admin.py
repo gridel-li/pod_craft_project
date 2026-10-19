@@ -23,7 +23,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # ============================================================
 
 async def get_admin_user(user: User = Depends(get_current_user)) -> User:
-    """Require the current user to be an admin."""
+    """Require the current user to be an admin；这是最简单的 RBAC（基于角色的访问控制）。"""
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user

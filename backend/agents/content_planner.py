@@ -15,6 +15,7 @@ class ContentPlannerAgent(BaseAgent):
         self.logger.info(f"规划内容: {context.topic}")
 
         strategy = context.metadata.get("mood_strategy", {})
+        # 只有启用且检索到资料时才把资料放 prompt，避免空标题或无关噪声浪费 token。
         rag_section = ""
         if context.rag_context:
             rag_section = f"\n\n参考资料：\n{context.rag_context}"
@@ -41,6 +42,7 @@ class ContentPlannerAgent(BaseAgent):
 }}"""},
         ]
 
+        # 规划结果暂存到 context，Writer 不需要重复计算大纲，只消费这份结构化输入。
         plan = await self._llm_json(messages, temperature=0.7)
         context.plan = plan
         context.title = plan.get("title", context.topic)

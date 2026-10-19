@@ -5,6 +5,7 @@ Start: uv run uvicorn main:app --reload --port 8000
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -24,6 +25,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 学习提示：lifespan 是 FastAPI 的“应用启动/关闭钩子”。
+# yield 之前在服务开始接收请求前执行，yield 之后在服务停止时执行。
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -42,7 +45,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS 决定哪些网页来源可以调用本 API。开发阶段的 * 很方便；生产必须改为前端域名白名单。
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -51,8 +54,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files (audio downloads)
-import os
+# StaticFiles 把本地 output 目录映射为 /files URL，浏览器才可以用 <audio src="/files/..."></audio> 播放文件。
 os.makedirs(settings.output_dir, exist_ok=True)
 app.mount("/files", StaticFiles(directory=settings.output_dir), name="files")
 

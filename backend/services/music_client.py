@@ -77,7 +77,7 @@ class MusicClient:
         返回：音频文件路径
         """
         try:
-            # 构建音乐描述
+            # 将产品侧 mood/style 转为供应商更容易理解的英文音乐提示词。
             prompt = self._build_prompt(mood, style)
 
             logger.info(f"生成背景音乐: mood={mood}, style={style}, prompt={prompt}")
@@ -107,7 +107,7 @@ class MusicClient:
             if base_resp.get("status_code", -1) != 0:
                 raise MusicError(f"MiniMax API 错误: {base_resp.get('status_msg', '未知错误')}")
 
-            # 获取音频数据（hex 格式）
+            # 获取音频数据（hex 格式）：hex 是字节的文本表示，bytes.fromhex 才能还原真实音频。
             audio_hex = result.get("data", {}).get("audio", "")
             if not audio_hex:
                 raise MusicError("MiniMax API 未返回音频数据")

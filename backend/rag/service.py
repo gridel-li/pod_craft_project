@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class RAGService:
-    """RAG 知识库服务"""
+    """RAG 知识库服务。
+
+    RAG = Retrieval-Augmented Generation：先检索自己的资料，再把资料放入模型提示词；
+    它不是训练或微调大模型。
+    """
 
     def __init__(self):
         self.client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
@@ -26,6 +30,7 @@ class RAGService:
     def add_document(self, content: str, title: str = "", source: str = "", chunk_size: int = 500) -> int:
         """添加文档（自动切分）"""
         try:
+            # 向量库通常按 chunk 检索而非整篇文档：chunk 太大不精准，太小则缺上下文。
             chunks = self._split_text(content, chunk_size)
             ids = [f"{uuid.uuid4().hex[:12]}" for _ in chunks]
             metadatas = [{"title": title, "source": source, "chunk_index": i} for i in range(len(chunks))]
@@ -41,6 +46,7 @@ class RAGService:
         try:
             if self.collection.count() == 0:
                 return []
+            # Chroma 负责把 query 和已有文本映射到向量空间，并找“距离”最小的 Top-K。
             results = self.collection.query(query_texts=[query], n_results=min(top_k, self.collection.count()))
             docs = []
             for i, doc in enumerate(results["documents"][0]):

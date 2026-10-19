@@ -23,6 +23,7 @@ class MoodAnalyzerAgent(BaseAgent):
     async def execute(self, context: AgentContext) -> AgentContext:
         self.logger.info(f"分析心情: mood={context.mood}, style={context.style}")
 
+        # get 的第二个参数是兜底值：即使前端传来未知 mood，工作流仍有安全默认策略。
         mood_desc = MOOD_PROMPTS.get(context.mood, MOOD_PROMPTS["neutral"])
 
         messages = [
@@ -42,6 +43,7 @@ class MoodAnalyzerAgent(BaseAgent):
 }}"""},
         ]
 
+        # 较低 temperature 让“策略类”输出更稳定，减少每次规划风格随机漂移。
         strategy = await self._llm_json(messages, temperature=0.5)
         context.metadata["mood_strategy"] = strategy
         self.logger.info(f"内容策略: {strategy.get('tone', '')}")

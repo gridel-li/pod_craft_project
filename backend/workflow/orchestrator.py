@@ -4,7 +4,6 @@ Workflow 编排器 — 协调所有 Agent 完成播客生成
 
 import logging
 import uuid
-from datetime import datetime
 
 from agents.base import AgentContext
 from agents.mood_analyzer import MoodAnalyzerAgent
@@ -17,13 +16,16 @@ from services.audio_service import AudioService
 from services.music_client import MusicClient
 from rag.service import RAGService
 from config.settings import settings
-from config.exceptions import WorkflowError
 
 logger = logging.getLogger(__name__)
 
 
 class WorkflowOrchestrator:
-    """Workflow 编播器"""
+    """Workflow 编播器。
+
+    学习提示：此类是“编排层”，不直接理解 HTTP 或数据库。它只协调 Agent 和外部服务，
+    所以可在测试中把这些依赖替换成 mock，单独验证业务流程。
+    """
 
     def __init__(self):
         self.llm = LLMClient()
@@ -58,20 +60,21 @@ class WorkflowOrchestrator:
         steps = []
 
         try:
-            # 初始化上下文
+            # AgentContext 是共享的“接力棒”：每个 Agent 在同一对象上追加自己的产物。
             ctx = AgentContext(
                 topic=topic, mood=mood, style=style,
                 duration_min=duration_min, voice=voice or settings.tts_voice,
                 custom_prompt=custom_prompt,
             )
 
-            # Step 1: RAG 检索
+            # Step 1: RAG 检索。检索到的文字不是答案，而是给后续 LLM 的参考上下文。
             if use_rag:
                 await self._report(progress_callback, "rag", "running", 10)
                 ctx.rag_context = self.rag.get_context(topic, top_k=5)
                 steps.append({"name": "rag", "status": "completed", "output": f"检索到 {len(ctx.rag_context)} 字"})
                 await self._report(progress_callback, "rag", "completed", 15)
 
+            # 每一步都先上报 running、执行、写 steps、再上报 completed；前端据此展示进度。
             # Step 2: 心情分析
             await self._report(progress_callback, "mood_analysis", "running", 20)
             ctx = await self.mood_agent.execute(ctx)
@@ -90,7 +93,7 @@ class WorkflowOrchestrator:
             steps.append({"name": "writing", "status": "completed", "output": f"{len(ctx.segments)} 个片段"})
             await self._report(progress_callback, "writing", "completed", 65)
 
-            # Step 5: 质量审查
+            # Step 5: 质量审查。当前只记录建议；尚未实现“不通过则回到 Writer 自动重写”。
             await self._report(progress_callback, "reviewing", "running", 70)
             ctx = await self.reviewer_agent.execute(ctx)
             steps.append({"name": "reviewing", "status": "completed", "output": ctx.review_notes})
@@ -103,7 +106,7 @@ class WorkflowOrchestrator:
             steps.append({"name": "synthesizing", "status": "completed", "output": f"{len(ctx.audio_paths)} 个音频"})
             await self._report(progress_callback, "synthesizing", "completed", 85)
 
-            # Step 7: 生成背景音乐
+            # Step 7: BGM 是可选增强。失败时降级为纯人声，而不是让整条播客任务失败。
             await self._report(progress_callback, "bgm", "running", 87)
             bgm_path = f"{output_dir}/bgm.mp3"
             try:

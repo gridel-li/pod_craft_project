@@ -13,7 +13,11 @@ from pydantic import BaseModel, Field
 # ============================================================
 
 class GenerateRequest(BaseModel):
-    """播客生成请求"""
+    """播客生成请求。
+
+    Pydantic 在接口入口把 JSON 转成对象并执行 Field 的长度、范围等校验；
+    它与数据库 ORM 模型是两层不同的职责。
+    """
     topic: str = Field(..., min_length=1, max_length=500, description="播客主题")
     mood: str = Field(default="neutral", description="心情/情感基调: neutral/excited/calm/humorous/serious")
     style: str = Field(default="narrative", description="风格: narrative/conversational/educational/storytelling")
@@ -51,7 +55,7 @@ class SegmentResponse(BaseModel):
 
 
 class TaskResponse(BaseModel):
-    """任务响应"""
+    """任务响应；这里定义“后端承诺给前端的 JSON 形状”。"""
     id: str
     topic: str
     mood: str
